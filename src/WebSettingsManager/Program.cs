@@ -1,7 +1,11 @@
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using System.Text;
+using WebSettingsManager.Interfaces;
+using WebSettingsManager.Models;
 
 namespace WebSettingsManager
 {
@@ -16,7 +20,8 @@ namespace WebSettingsManager
             // Подробнее о конфигурации Swagger/OpenAPI https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
-
+            builder.Services.AddDbContext<WebSettingsManagerDbContext>(options => options.UseSqlite("Data Source=WebSettingsManager.db"));
+            builder.Services.AddScoped<IWebSettingsManagerDbContext>(serviceProvider => serviceProvider.GetRequiredService<WebSettingsManagerDbContext>());
             var app = builder.Build();
 
             if (app.Environment.IsDevelopment())
