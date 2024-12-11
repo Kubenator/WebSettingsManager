@@ -24,9 +24,6 @@ namespace WebSettingsManager.Models
         }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<User>()
-                .HasAlternateKey(u => u.Username);
-
             modelBuilder.Entity<UserTextConfiguration>()
                 .HasOne<User>()
                 .WithMany()
@@ -35,15 +32,17 @@ namespace WebSettingsManager.Models
         }
     }
 
+    [Index(nameof(Username), IsUnique = true)] //Никнейм пользователя должен быть уникален
     public class User
     {
         [Key]
         public UInt64 Id { get; set; }
 
         /// <summary>
-        /// Уникальное имя пользователя
+        /// Уникальное имя пользователя<br/>
+        /// Альтернативный ключ
         /// </summary>
-        public string Username { get; set; } = null!; //В FluentAPI настроена уникальность по Username
+        public string Username { get; set; } = null!;
 
         /// <summary>
         /// Имя из инициалов пользователя
@@ -61,35 +60,76 @@ namespace WebSettingsManager.Models
     {
         [Key]
         public UInt64 Id { get; set; }
-        public User User { get; set; } = null!;
+
+        /// <summary>
+        /// Никнейм пользователя<br/>
+        /// Соотносится со свойством ведущей сущности <see cref="User.Username"/>
+        /// </summary>
         public string UserUsername { get; set; } = null!;
 
-        public string ConfigurationName { get; set; } = null!;
-        public DateTime CreationDateTime { get; set; }
-        public DateTime ModificationDateTime { get; set; }
-        public DateTime SaveDateTime { get; set; }
-        
+        /// <summary>
+        /// Название конфигурации
+        /// </summary>
+        public string ConfigurationName { get; set; } = null!;     
+
+        /// <summary>
+        /// Текущее состояние конфигурации
+        /// </summary>
         public TextConfigurationActualState TextConfigurationActualState { get; set; } = null!;
+
+        /// <summary>
+        /// Множество сохранненых версий конфигурации
+        /// </summary>
         public List<TextConfigurationSavedState> TextConfigurationSavedStates { get; set; } = new();
     }
     public class TextConfigurationActualState
     {
         [Key]
         public UInt64 Id { get; set; }
-        public string FontName { get; set; } = null!;
-        public string FontSize { get; set; } = null!;
 
-        public UInt64 TextConfigurationId { get; set; }
-        public UserTextConfiguration TextConfiguration { get; set; } = null!;
+        /// <summary>
+        /// Момент создания конфигурации
+        /// </summary>
+        public DateTime CreationDateTime { get; set; }
+
+        /// <summary>
+        /// Момент последней модификации конфигурации
+        /// </summary>
+        public DateTime ModificationDateTime { get; set; }
+
+        ///// <summary>
+        ///// Актуальные параметры кофигурации
+        ///// </summary>
+        //public TextConfigurationOptions TextConfigurationOptions { get; set; } = null!;
+        public string FontName { get; set; } = null!;
+        public int FontSize { get; set; }
+
+        ///// <summary>
+        ///// Сохраненное состояние
+        ///// </summary>
+        //public TextConfigurationSavedState? TextConfigurationSavedState { get; set; } = null!;
+
+        public UInt64 UserTextConfigurationId { get; set; }
+        public UserTextConfiguration UserTextConfiguration { get; set; } = null!;
     }
     public class TextConfigurationSavedState
     {
         [Key]
         public UInt64 Id { get; set; }
         public DateTime SaveDateTime { get; set; }
+        //TextConfigurationOptions TextConfigurationOptions { get; set; } = null!;
         public string FontName { get; set; } = null!;
-        public string FontSize { get; set; } = null!;
+        public int FontSize { get; set; }
 
-        public UserTextConfiguration TextConfiguration { get; set; } = null!;
+        public UserTextConfiguration UserTextConfiguration { get; set; } = null!;
     }
+    //public class TextConfigurationOptions
+    //{
+    //    [Key]
+    //    public UInt64 Id { get; set; }
+
+    //    public string FontName { get; set; } = null!;
+    //    public int FontSize { get; set; }
+
+    //}
 }
