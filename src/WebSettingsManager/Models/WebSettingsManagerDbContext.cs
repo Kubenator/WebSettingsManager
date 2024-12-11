@@ -12,7 +12,7 @@ namespace WebSettingsManager.Models
         public DbSet<UserTextConfiguration> UserTextConfigurations { get; set; } = null!;
         public DbSet<TextConfigurationActualState> TextConfigurationActualStates { get; set; } = null!;
         public DbSet<TextConfigurationSavedState> TextConfigurationSavedStates { get; set; } = null!;
-        //public DbSet<TextConfigurationOptions> TextConfigurationOptions { get; set; } = null!;
+        public DbSet<TextConfigurationOptions> TextConfigurationOptions { get; set; } = null!;
 
         public DbContext Instance => this;
 
@@ -70,11 +70,12 @@ namespace WebSettingsManager.Models
         /// <summary>
         /// Название конфигурации
         /// </summary>
-        public string ConfigurationName { get; set; } = null!;     
+        public string ConfigurationName { get; set; } = null!;
 
         /// <summary>
         /// Текущее состояние конфигурации
         /// </summary>
+        [Required]
         public TextConfigurationActualState TextConfigurationActualState { get; set; } = null!;
 
         /// <summary>
@@ -97,17 +98,16 @@ namespace WebSettingsManager.Models
         /// </summary>
         public DateTime ModificationDateTime { get; set; }
 
-        ///// <summary>
-        ///// Актуальные параметры кофигурации
-        ///// </summary>
-        //public TextConfigurationOptions TextConfigurationOptions { get; set; } = null!;
-        public string FontName { get; set; } = null!;
-        public int FontSize { get; set; }
+        /// <summary>
+        /// Опции конфигурации текста
+        /// </summary>
+        [Required]
+        public TextConfigurationOptions TextConfigurationOptions { get; set; } = null!;
 
-        ///// <summary>
-        ///// Сохраненное состояние
-        ///// </summary>
-        //public TextConfigurationSavedState? TextConfigurationSavedState { get; set; } = null!;
+        /// <summary>
+        /// Сохраненное состояние
+        /// </summary>        
+        public TextConfigurationSavedState? TextConfigurationSavedState { get; set; } = null!;
 
         public UInt64 UserTextConfigurationId { get; set; }
         public UserTextConfiguration UserTextConfiguration { get; set; } = null!;
@@ -116,20 +116,41 @@ namespace WebSettingsManager.Models
     {
         [Key]
         public UInt64 Id { get; set; }
-        public DateTime SaveDateTime { get; set; }
-        //TextConfigurationOptions TextConfigurationOptions { get; set; } = null!;
-        public string FontName { get; set; } = null!;
-        public int FontSize { get; set; }
 
+        /// <summary>
+        /// Врямя сохранения состояния
+        /// </summary>
+        public DateTime SaveDateTime { get; set; }
+
+        /// <summary>
+        /// Опции конфигурации текста
+        /// </summary>
+        [Required]
+        public TextConfigurationOptions TextConfigurationOptions { get; set; } = null!;
+
+        public UInt64 UserTextConfigurationId { get; set; }
         public UserTextConfiguration UserTextConfiguration { get; set; } = null!;
     }
-    //public class TextConfigurationOptions
-    //{
-    //    [Key]
-    //    public UInt64 Id { get; set; }
+    public class TextConfigurationOptions
+    {
+        [Key]
+        public UInt64 Id { get; set; }
 
-    //    public string FontName { get; set; } = null!;
-    //    public int FontSize { get; set; }
+        /// <summary>
+        /// Название шрифта
+        /// </summary>
+        public string FontName { get; set; } = null!;
 
-    //}
+        /// <summary>
+        /// Размер шрифта
+        /// </summary>
+        public int FontSize { get; set; }
+
+        
+        public UInt64 TextConfigurationSavedStateId { get; set; }
+        public TextConfigurationSavedState TextConfigurationSavedState { get; set; } = null!;
+        public UInt64 TextConfigurationActualStateId { get; set; }
+        public TextConfigurationActualState TextConfigurationActualStateState { get; set; } = null!;
+
+    }
 }
