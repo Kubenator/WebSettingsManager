@@ -8,32 +8,33 @@ namespace WebSettingsManager.Models
 {
     public class WebSettingsManagerDbContext : DbContext, IWebSettingsManagerDbContext
     {
-        public DbSet<User> Users { get; set; } = null!;
-        public DbSet<UserTextConfiguration> UserTextConfigurations { get; set; } = null!;
-        public DbSet<TextConfigurationActualState> TextConfigurationActualStates { get; set; } = null!;
-        public DbSet<TextConfigurationSavedState> TextConfigurationSavedStates { get; set; } = null!;
-        public DbSet<TextConfigurationOptions> TextConfigurationOptions { get; set; } = null!;
+        public DbSet<User_Db> Users { get; set; } = null!;
+        public DbSet<UserTextConfiguration_Db> UserTextConfigurations { get; set; } = null!;
+        public DbSet<TextConfigurationActualState_Db> TextConfigurationActualStates { get; set; } = null!;
+        public DbSet<TextConfigurationSavedState_Db> TextConfigurationSavedStates { get; set; } = null!;
+        public DbSet<TextConfigurationOptions_Actual_Db> TextConfigurationOptionsForActualStates { get; set; } = null!;
+        public DbSet<TextConfigurationOptions_Saved_Db> TextConfigurationOptionsForSavedStates { get; set; } = null!;
 
         public DbContext Instance => this;
 
         public WebSettingsManagerDbContext(DbContextOptions<WebSettingsManagerDbContext> options) : base(options)
         {
-            Database.EnsureDeleted();
+            //Database.EnsureDeleted();
             Database.EnsureCreated();
-            Console.WriteLine("DBContext created!");
+            Console.WriteLine("DBContext created: " + Database.GetConnectionString());
         }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<UserTextConfiguration>()
-                .HasOne<User>()
-                .WithMany()
-                .HasForeignKey(textConfiguration => textConfiguration.UserUsername)
-                .HasPrincipalKey(user => user.Username);
+            //modelBuilder.Entity<UserTextConfiguration>()
+            //    .HasOne<User>()
+            //    .WithMany()
+            //    .HasForeignKey(textConfiguration => textConfiguration.UserUsername)
+            //    .HasPrincipalKey(user => user.Username);
         }
     }
 
     [Index(nameof(Username), IsUnique = true)] //Никнейм пользователя должен быть уникален
-    public class User
+    public class User_Db : IUser
     {
         [Key]
         public UInt64 Id { get; set; }
@@ -45,27 +46,36 @@ namespace WebSettingsManager.Models
         public string Username { get; set; } = null!;
 
         /// <summary>
-        /// Имя из инициалов пользователя
+        /// Имя из ФИО пользователя
         /// </summary>
         public string Name { get; set; } = null!;
 
         /// <summary>
         /// Конфигурации пользователя
         /// </summary>
-        public List<UserTextConfiguration> TextConfigurations { get; set; } = new();
+        public List<UserTextConfiguration_Db> TextConfigurations { get; set; } = new();
     }
 
-    [Index(nameof(UserUsername), nameof(ConfigurationName), IsUnique = true)] //Название конфигурации должно быть уникально в пределах одного пользователя
-    public class UserTextConfiguration
+    [Index(nameof(UserId), nameof(ConfigurationName), IsUnique = true)] //Название конфигурации должно быть уникально в пределах одного пользователя
+    public class UserTextConfiguration_Db : ITextConfiguration
     {
+        public UserTextConfiguration_Db() { }
+        public UserTextConfiguration_Db(UInt64 userId, ITextConfiguration textConfiguration)
+        {
+            UserId = userId;
+            ConfigurationName = textConfiguration.ConfigurationName;
+
+            TextConfigurationActualState = new TextConfigurationActualState_Db(textConfiguration.TextConfigurationOptions, this);
+        }
         [Key]
         public UInt64 Id { get; set; }
+        public UInt64 UserId { get; set; }
 
-        /// <summary>
-        /// Никнейм пользователя<br/>
-        /// Соотносится со свойством ведущей сущности <see cref="User.Username"/>
-        /// </summary>
-        public string UserUsername { get; set; } = null!;
+        ///// <summary>
+        ///// Никнейм пользователя<br/>
+        ///// Соотносится со свойством ведущей сущности <see cref="User.Username"/>
+        ///// </summary>
+        //public string UserUsername { get; set; } = null!;
 
         /// <summary>
         /// Название конфигурации
@@ -76,17 +86,31 @@ namespace WebSettingsManager.Models
         /// Текущее состояние конфигурации
         /// </summary>
         [Required]
-        public TextConfigurationActualState TextConfigurationActualState { get; set; } = null!;
+        public TextConfigurationActualState_Db TextConfigurationActualState { get; set; } = null!;
 
         /// <summary>
         /// Множество сохранненых версий конфигурации
         /// </summary>
-        public List<TextConfigurationSavedState> TextConfigurationSavedStates { get; set; } = new();
+        public List<TextConfigurationSavedState_Db> TextConfigurationSavedStates { get; set; } = new();
+
+        [NotMapped]
+        ITextConfigurationOptions ITextConfiguration.TextConfigurationOptions => TextConfigurationActualState.TextConfigurationOptions;
     }
-    public class TextConfigurationActualState
+    public class TextConfigurationActualState_Db
     {
+        public TextConfigurationActualState_Db() { }
+        public TextConfigurationActualState_Db(ITextConfigurationOptions textConfigurationOptions, UserTextConfiguration_Db userTextConfiguration)
+        {
+            var dt = DateTime.UtcNow;
+            CreationDateTime = dt;
+            ModificationDateTime = dt;
+            UserTextConfigurationId = userTextConfiguration.Id;
+            TextConfigurationOptions = new TextConfigurationOptions_Actual_Db(this, textConfigurationOptions);            
+        }
+
         [Key]
         public UInt64 Id { get; set; }
+        public UInt64 UserTextConfigurationId { get; set; }
 
         /// <summary>
         /// Момент создания конфигурации
@@ -102,20 +126,26 @@ namespace WebSettingsManager.Models
         /// Опции конфигурации текста
         /// </summary>
         [Required]
-        public TextConfigurationOptions TextConfigurationOptions { get; set; } = null!;
+        public TextConfigurationOptions_Actual_Db TextConfigurationOptions { get; set; } = null!;
 
         /// <summary>
         /// Сохраненное состояние
         /// </summary>        
-        public TextConfigurationSavedState? TextConfigurationSavedState { get; set; } = null!;
-
-        public UInt64 UserTextConfigurationId { get; set; }
-        public UserTextConfiguration UserTextConfiguration { get; set; } = null!;
+        public TextConfigurationSavedState_Db? TextConfigurationSavedState { get; set; } = null!;
+        
     }
-    public class TextConfigurationSavedState
+    public class TextConfigurationSavedState_Db
     {
+        public TextConfigurationSavedState_Db() { }
+        public TextConfigurationSavedState_Db(TextConfigurationActualState_Db textConfigurationActualState, DateTime saveDateTime)
+        {
+            SaveDateTime = saveDateTime;
+            UserTextConfigurationId = textConfigurationActualState.UserTextConfigurationId;
+            TextConfigurationOptions = new TextConfigurationOptions_Saved_Db(textConfigurationActualState);
+        }
         [Key]
         public UInt64 Id { get; set; }
+        public UInt64 UserTextConfigurationId { get; set; }
 
         /// <summary>
         /// Врямя сохранения состояния
@@ -126,31 +156,38 @@ namespace WebSettingsManager.Models
         /// Опции конфигурации текста
         /// </summary>
         [Required]
-        public TextConfigurationOptions TextConfigurationOptions { get; set; } = null!;
-
-        public UInt64 UserTextConfigurationId { get; set; }
-        public UserTextConfiguration UserTextConfiguration { get; set; } = null!;
+        public TextConfigurationOptions_Saved_Db TextConfigurationOptions { get; set; } = null!;
     }
-    public class TextConfigurationOptions
+    public class TextConfigurationOptions_Actual_Db : ITextConfigurationOptions
     {
+        public TextConfigurationOptions_Actual_Db() { }
+        public TextConfigurationOptions_Actual_Db(TextConfigurationActualState_Db textConfigurationActualState, ITextConfigurationOptions textConfigurationOptions)
+        { 
+            TextConfigurationActualStateId = textConfigurationActualState.Id;
+            FontName = textConfigurationOptions.FontName;
+            FontSize = textConfigurationOptions.FontSize;
+        }
         [Key]
         public UInt64 Id { get; set; }
-
-        /// <summary>
-        /// Название шрифта
-        /// </summary>
         public string FontName { get; set; } = null!;
-
-        /// <summary>
-        /// Размер шрифта
-        /// </summary>
         public int FontSize { get; set; }
 
+        public UInt64 TextConfigurationActualStateId { get; set; }
+    }
+    public class TextConfigurationOptions_Saved_Db : ITextConfigurationOptions
+    {
+        public TextConfigurationOptions_Saved_Db() { }
+        public TextConfigurationOptions_Saved_Db(TextConfigurationActualState_Db textConfigurationActualState/*, ITextConfigurationOptions textConfigurationOptions*/)
+        {
+            TextConfigurationSavedStateId = textConfigurationActualState.Id;
+            FontName = textConfigurationActualState.TextConfigurationOptions.FontName;
+            FontSize = textConfigurationActualState.TextConfigurationOptions.FontSize;
+        }
+        [Key]
+        public UInt64 Id { get; set; }
+        public string FontName { get; set; } = null!;
+        public int FontSize { get; set; }
         
         public UInt64 TextConfigurationSavedStateId { get; set; }
-        public TextConfigurationSavedState TextConfigurationSavedState { get; set; } = null!;
-        public UInt64 TextConfigurationActualStateId { get; set; }
-        public TextConfigurationActualState TextConfigurationActualStateState { get; set; } = null!;
-
     }
 }

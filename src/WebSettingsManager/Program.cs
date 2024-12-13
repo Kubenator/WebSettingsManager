@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.OpenApi.Models;
 using System.Text;
 using WebSettingsManager.Interfaces;
 using WebSettingsManager.Models;
@@ -14,12 +15,27 @@ namespace WebSettingsManager
         public static void Main(string[] args)
         {
             //MvcOptions.Ena
-            var builder = WebApplication.CreateBuilder(args);
+            var builder = WebApplication.CreateBuilder(args);            
             builder.Services.AddControllers();
 
-            // Подробнее о конфигурации Swagger/OpenAPI https://aka.ms/aspnetcore/swashbuckle
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ Swagger/OpenAPI https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
+            builder.Services.AddSwaggerGen(options => {
+                options.SwaggerDoc("v1", new OpenApiInfo
+                {
+                    Version = "v1",
+                    Title = "WebSettingsManager API",
+                    Description = "РћРїРёСЃР°РЅРёРµ Web API РЅР° Р±Р°Р·Рµ ASP.NET Core",
+                    Contact = new OpenApiContact
+                    {
+                        Name = "РџРѕС‡С‚Р° mail.ru",
+                        Email = "gulin-aleksey@inbox.ru"
+                    }
+                });
+                var basePath = AppContext.BaseDirectory;
+                var xmlPath = Path.Combine(basePath, "WebSettingsManager.xml");
+                options.IncludeXmlComments(xmlPath);
+            });
             builder.Services.AddDbContext<WebSettingsManagerDbContext>(options => options.UseSqlite("Data Source=WebSettingsManager.db"));
             builder.Services.AddScoped<IWebSettingsManagerDbContext>(serviceProvider => serviceProvider.GetRequiredService<WebSettingsManagerDbContext>());
             var app = builder.Build();
@@ -28,9 +44,9 @@ namespace WebSettingsManager
             {
                 app.UseSwagger();
 
-                // Доступен на http://localhost:5197/swagger/index.html
-                // Доступен на http://localhost:5197/swagger/v1/swagger.json
-                // Доступен на http://localhost:5197/swagger/v1/swagger.yaml
+                // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ http://localhost:5197/swagger/index.html
+                // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ http://localhost:5197/swagger/v1/swagger.json
+                // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ http://localhost:5197/swagger/v1/swagger.yaml
                 app.UseSwaggerUI(); 
             }
 

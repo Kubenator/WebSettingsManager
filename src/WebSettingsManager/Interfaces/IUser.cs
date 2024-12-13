@@ -11,5 +11,10 @@ namespace WebSettingsManager.Interfaces
         /// Логин пользователя
         /// </summary>
         public string Username { get; }
+
+        /// <summary>
+        /// Имя из ФИО пользователя
+        /// </summary>
+        public string Name { get; }
     }
 }

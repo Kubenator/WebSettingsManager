@@ -1,15 +1,17 @@
-﻿using WebSettingsManager.Interfaces;
+﻿using System.Text.Json.Serialization;
+using WebSettingsManager.Interfaces;
 
 namespace WebSettingsManager.Models
 {
-    public class TextConfigurationData : ITextConfigurationData, IEquatable<TextConfigurationData>, IEquatable<ITextConfigurationData>
+    public class TextConfigurationOptions : ITextConfigurationOptions, IEquatable<TextConfigurationOptions>, IEquatable<ITextConfigurationOptions>
     {
-        public TextConfigurationData(string fontName = "Consolas", int fontSize = 12)
+        [JsonConstructor]
+        public TextConfigurationOptions(string fontName = "Consolas", int fontSize = 12)
         {
             this.FontName = fontName;
             this.FontSize = fontSize;
         }
-        public TextConfigurationData(ITextConfigurationData textConfigurationData)
+        public TextConfigurationOptions(ITextConfigurationOptions textConfigurationData)
         { 
             this.FontName = textConfigurationData.FontName;
             this.FontSize = textConfigurationData.FontSize;
@@ -18,11 +20,11 @@ namespace WebSettingsManager.Models
 
         public int FontSize { get; }
 
-        public bool Equals(TextConfigurationData? other)
+        public bool Equals(TextConfigurationOptions? other)
         {
-            return this.Equals(other as ITextConfigurationData);
+            return this.Equals(other as ITextConfigurationOptions);
         }
-        public bool Equals(ITextConfigurationData? other)
+        public bool Equals(ITextConfigurationOptions? other)
         {
             if (other is null)
                 return false;

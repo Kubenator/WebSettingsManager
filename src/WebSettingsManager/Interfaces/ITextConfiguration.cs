@@ -8,27 +8,12 @@
         /// <summary>
         /// Название конфигурации
         /// </summary>
-        public string Name { get; }
-
-        /// <summary>
-        /// Время создание конфигурации
-        /// </summary>
-        public DateTime CreationDateTime { get; }
-
-        /// <summary>
-        /// Время модификации конфигурации
-        /// </summary>
-        public DateTime ModificationDateTime { get; }
-
-        /// <summary>
-        /// Время сохранения версии конфигурации
-        /// </summary>
-        public DateTime SaveDateTime { get; }
+        public string ConfigurationName { get; }
 
         /// <summary>
         /// Параметры конфигурации текста
         /// </summary>
-        public ITextConfigurationData TextConfigurationData { get; }
+        public ITextConfigurationOptions TextConfigurationOptions { get; }
        
     }
 }

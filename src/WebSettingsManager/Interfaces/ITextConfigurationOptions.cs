@@ -3,7 +3,7 @@
     /// <summary>
     /// Интерфейс параметров конфигурации текста
     /// </summary>
-    public interface ITextConfigurationData
+    public interface ITextConfigurationOptions
     {
         /// <summary>
         /// Название шрифта
