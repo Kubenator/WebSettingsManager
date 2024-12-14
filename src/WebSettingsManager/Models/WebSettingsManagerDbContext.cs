@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Net.Mail;
 using WebSettingsManager.Interfaces;
 
+#pragma warning disable CS1591
 namespace WebSettingsManager.Models
 {
     public class WebSettingsManagerDbContext : DbContext, IWebSettingsManagerDbContext
@@ -22,14 +23,6 @@ namespace WebSettingsManager.Models
             //Database.EnsureDeleted();
             Database.EnsureCreated();
             Console.WriteLine("DBContext created: " + Database.GetConnectionString());
-        }
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            //modelBuilder.Entity<UserTextConfiguration>()
-            //    .HasOne<User>()
-            //    .WithMany()
-            //    .HasForeignKey(textConfiguration => textConfiguration.UserUsername)
-            //    .HasPrincipalKey(user => user.Username);
         }
     }
 
@@ -69,13 +62,10 @@ namespace WebSettingsManager.Models
         }
         [Key]
         public UInt64 Id { get; set; }
-        public UInt64 UserId { get; set; }
 
-        ///// <summary>
-        ///// Никнейм пользователя<br/>
-        ///// Соотносится со свойством ведущей сущности <see cref="User.Username"/>
-        ///// </summary>
-        //public string UserUsername { get; set; } = null!;
+
+        public UInt64 UserId { get; set; }
+        public User_Db User { get; set; } = null!;
 
         /// <summary>
         /// Название конфигурации
@@ -110,7 +100,10 @@ namespace WebSettingsManager.Models
 
         [Key]
         public UInt64 Id { get; set; }
+
         public UInt64 UserTextConfigurationId { get; set; }
+        public UserTextConfiguration_Db UserTextConfiguration { get; set; } = null!;
+        
 
         /// <summary>
         /// Момент создания конфигурации
@@ -145,7 +138,10 @@ namespace WebSettingsManager.Models
         }
         [Key]
         public UInt64 Id { get; set; }
+
         public UInt64 UserTextConfigurationId { get; set; }
+        public UserTextConfiguration_Db UserTextConfiguration { get; set; } = null!;
+
 
         /// <summary>
         /// Врямя сохранения состояния
@@ -169,10 +165,12 @@ namespace WebSettingsManager.Models
         }
         [Key]
         public UInt64 Id { get; set; }
-        public string FontName { get; set; } = null!;
-        public int FontSize { get; set; }
 
         public UInt64 TextConfigurationActualStateId { get; set; }
+        public TextConfigurationActualState_Db TextConfigurationActualState { get; set; } = null!;
+
+        public string FontName { get; set; } = null!;
+        public int FontSize { get; set; }
     }
     public class TextConfigurationOptions_Saved_Db : ITextConfigurationOptions
     {
@@ -185,9 +183,11 @@ namespace WebSettingsManager.Models
         }
         [Key]
         public UInt64 Id { get; set; }
+
+        public UInt64 TextConfigurationSavedStateId { get; set; }
+        public TextConfigurationSavedState_Db TextConfigurationSavedState { get; set; } = null!;
+
         public string FontName { get; set; } = null!;
         public int FontSize { get; set; }
-        
-        public UInt64 TextConfigurationSavedStateId { get; set; }
     }
 }
