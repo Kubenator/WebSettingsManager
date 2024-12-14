@@ -227,6 +227,24 @@ namespace WebSettingsManager.Controllers
         }
 
         /// <summary>
+        /// Получить конкретное сохраненное состояние конфигурации пользователя
+        /// </summary>
+        /// <param name="userId"></param>
+        /// <param name="confId"></param>
+        /// <param name="stateId"></param>
+        /// <returns></returns>
+        [HttpGet("{userId:long}/configurations/{confId:long}/saved-states/{stateId:long}", Name = "GetSpecificSavedStateForExistingUserConfiguration")]
+        public async Task<IActionResult> GetSpecificSavedStateForConfiguration([FromRoute] UInt64 userId, [FromRoute] UInt64 confId, [FromRoute] UInt64 stateId)
+        {
+            var existingConfiguration = await _dbContext.UserTextConfigurations
+                .FirstAsync(c => c.UserId == userId && c.Id == confId);
+            var savedState = await _dbContext.TextConfigurationSavedStates
+                .FirstAsync(ss => ss.Id == stateId);
+
+            return Ok(savedState);
+        }
+
+        /// <summary>
         /// Сохранить состояние конфигураиции пользователя
         /// </summary>
         /// <param name="userId"></param>
