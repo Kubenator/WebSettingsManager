@@ -37,11 +37,13 @@ namespace WebSettingsManager.Models
         /// Уникальное имя пользователя<br/>
         /// Альтернативный ключ
         /// </summary>
+        [MinLength(3)]
         public string Username { get; set; } = null!;
 
         /// <summary>
         /// Имя из ФИО пользователя
         /// </summary>
+        [MinLength(3)]
         public string Name { get; set; } = null!;
 
         /// <summary>
@@ -72,6 +74,7 @@ namespace WebSettingsManager.Models
         /// <summary>
         /// Название конфигурации
         /// </summary>
+        [MinLength(3)]
         public string ConfigurationName { get; set; } = null!;
 
         /// <summary>

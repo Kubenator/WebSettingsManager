@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
+using System.Text.RegularExpressions;
 using WebSettingsManager.Interfaces;
 using WebSettingsManager.Models;
 
@@ -109,16 +109,31 @@ namespace WebSettingsManager.Controllers
         /// Получить список конфигураций, связанных с пользователем
         /// </summary>
         /// <param name="userId"></param>
+        /// <param name="configurationFilterOptions"></param>
         /// <returns></returns>
         [HttpGet("{userId:long}/configurations", Name = "GetConfigurationsForSpecificUser")]
-        public async Task<IActionResult> GetConfigurationsForSpecificUser([FromRoute] UInt64 userId)
+        public async Task<IActionResult> GetConfigurationsForSpecificUser([FromRoute] UInt64 userId, [FromQuery] ConfigurationFilterOptions configurationFilterOptions)
         {
-            var configurations = await _dbContext.UserTextConfigurations
-                .Where(x => x.UserId == userId)
+            var iQueryableConfigurations = _dbContext.UserTextConfigurations
                 .Include(c => c.TextConfigurationActualState)
                     .ThenInclude(s => s.TextConfigurationOptions)
+                .Where(x => x.UserId == userId);
+
+            FilterItems(ref iQueryableConfigurations, configurationFilterOptions);
+
+            var configurations = await iQueryableConfigurations
                 .ToListAsync();
             return Ok(configurations);
+
+            void FilterItems(ref IQueryable<UserTextConfiguration_Db> items, ConfigurationFilterOptions filterOptions)
+            {
+                if (filterOptions.CreationDateTimeOlderThanOrEqual != null)
+                    items = items.Where(c => c.TextConfigurationActualState.CreationDateTime >= filterOptions.CreationDateTimeOlderThanOrEqual);
+                if (filterOptions.CreationDateTimeEarlierThanOrEqual != null)
+                    items = items.Where(c => c.TextConfigurationActualState.CreationDateTime <= filterOptions.CreationDateTimeEarlierThanOrEqual);
+                if (filterOptions.ConfigurationNameTemplate != null)
+                    items = items.Where(c => Regex.IsMatch(c.ConfigurationName, filterOptions.ConfigurationNameTemplate.Replace("*", ".*")));
+            }
         }
 
         /// <summary>
@@ -351,6 +366,27 @@ namespace WebSettingsManager.Controllers
             
             await _dbContext.Instance.SaveChangesAsync();
             return Ok(existingConfiguration.TextConfigurationActualState.TextConfigurationOptions);
+        }
+
+        /// <summary>
+        /// Опции фильтрации конфигураций пользователя
+        /// </summary>
+        public class ConfigurationFilterOptions
+        {
+            /// <summary>
+            /// Шаблон поиска конфигурации по имени через * и наличие последовательностей
+            /// </summary>
+            public string? ConfigurationNameTemplate { get; set; } = null;
+
+            /// <summary>
+            /// Время создание должно быть раньше или совпадать со значением
+            /// </summary>
+            public DateTime? CreationDateTimeEarlierThanOrEqual { get; set; } = null;
+
+            /// <summary>
+            /// Время создание должно быть позже или совпадать со значением
+            /// </summary>
+            public DateTime? CreationDateTimeOlderThanOrEqual { get; set; } = null;
         }
 
 #pragma warning disable CS1591
