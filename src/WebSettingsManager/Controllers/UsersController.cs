@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using WebSettingsManager.Interfaces;
 using WebSettingsManager.Models;
 
@@ -9,7 +10,7 @@ namespace WebSettingsManager.Controllers
     /// Контроллер пользователей с версионируемой конфигурацией текста
     /// </summary>
     [ApiController]
-    [Route("/api/v1/[controller]")]
+    [Route("/api/v1/users")]
     public class UsersController : Controller
     {
 
@@ -32,10 +33,11 @@ namespace WebSettingsManager.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpGet("", Name = "GetAllUsers")]
-        public IActionResult GetUsers()
+        public async Task<IActionResult> GetUsers()
         {
-            return Ok(_dbContext.Users
-                .ToList());
+            var users = await _dbContext.Users
+                .ToListAsync();
+            return Ok(users);
         }
 
         /// <summary>
@@ -62,6 +64,8 @@ namespace WebSettingsManager.Controllers
         {
             var existingUser = await _dbContext.Users
                 .FirstOrDefaultAsync(u => u.Id == userId);
+            if (existingUser == null)
+                return NotFound();
             return Ok(existingUser);
         }
 
@@ -74,7 +78,10 @@ namespace WebSettingsManager.Controllers
         [HttpPatch("{userId:long}", Name = "PatchExistingUserById")]
         public async Task<IActionResult> PatchUser([FromRoute] UInt64 userId, [FromBody] UserData user)
         {
-            var existingUser = await _dbContext.Users.FirstAsync(x => x.Id == userId);
+            var existingUser = await _dbContext.Users
+                .FirstOrDefaultAsync(x => x.Id == userId);
+            if (existingUser == null)
+                return NotFound();
             existingUser.Username = user.Username;
             existingUser.Name = user.Name;
             await _dbContext.Instance.SaveChangesAsync();
@@ -85,14 +92,15 @@ namespace WebSettingsManager.Controllers
         /// Удалить существующего пользователя
         /// </summary>
         /// <param name="userId"></param>
-        /// <param name="user"></param>
         /// <returns></returns>
         [HttpDelete("{userId:long}", Name = "DeleteExistingUserById")]
-        public async Task<IActionResult> DeleteUser([FromRoute] UInt64 userId, [FromBody] UserData user)
+        public async Task<IActionResult> DeleteUser([FromRoute] UInt64 userId)
         {
-            var existingUser = await _dbContext.Users.FirstAsync(x => x.Id == userId);
-            existingUser.Username = user.Username;
-            existingUser.Name = user.Name;
+            var existingUser = await _dbContext.Users
+                .FirstOrDefaultAsync(x => x.Id == userId);
+            if (existingUser == null)
+                return NotFound();
+            _dbContext.Users.Remove(existingUser);
             await _dbContext.Instance.SaveChangesAsync();
             return Ok(existingUser);
         }
@@ -102,17 +110,14 @@ namespace WebSettingsManager.Controllers
         /// </summary>
         /// <param name="userId"></param>
         /// <returns></returns>
-        [HttpGet("{userId:long}/configurations")]
+        [HttpGet("{userId:long}/configurations", Name = "GetConfigurationsForSpecificUser")]
         public async Task<IActionResult> GetConfigurationsForSpecificUser([FromRoute] UInt64 userId)
         {
-            var user = await _dbContext.Users
-                .Include(u => u.TextConfigurations)
-                .ThenInclude(c => c.TextConfigurationActualState)
-                .ThenInclude(c => c.TextConfigurationOptions)
-                .FirstAsync(u => u.Id == userId);
-            if (user == null)
-                return new NotFoundResult();
-            var configurations = user.TextConfigurations.ToList();
+            var configurations = await _dbContext.UserTextConfigurations
+                .Where(x => x.UserId == userId)
+                .Include(c => c.TextConfigurationActualState)
+                    .ThenInclude(s => s.TextConfigurationOptions)
+                .ToListAsync();
             return Ok(configurations);
         }
 
@@ -122,22 +127,18 @@ namespace WebSettingsManager.Controllers
         /// <param name="userId"></param>
         /// <param name="confId"></param>
         /// <returns></returns>
-        [HttpGet("{userId:long}/configurations/{confId:long}")]
+        [HttpGet("{userId:long}/configurations/{confId:long}", Name = "GetConfigurationForUser")]
         public async Task<IActionResult> GetSpecificConfigurationForSpecificUser([FromRoute] UInt64 userId, [FromRoute] UInt64 confId)
         {
-            var user = await _dbContext.Users
-
-                .Include(u => u.TextConfigurations)
-                .ThenInclude(c => c.TextConfigurationActualState)
-                .ThenInclude(c => c.TextConfigurationOptions)
-
-                .Include(u => u.TextConfigurations)
-                .ThenInclude(c => c.TextConfigurationSavedStates)
-                .ThenInclude(ss => ss.TextConfigurationOptions)
-
-                .FirstAsync(u => u.Id == userId);
-            var configuration = user.TextConfigurations
-                .First(c => c.Id == confId);
+            var configuration = await _dbContext.UserTextConfigurations
+                .Include(c => c.TextConfigurationActualState)
+                    .ThenInclude(c => c.TextConfigurationOptions)
+                .Include(ss => ss.TextConfigurationActualState)
+                    .ThenInclude(s => s.TextConfigurationSavedState)
+                        .ThenInclude(s => s.TextConfigurationOptions)
+                .FirstOrDefaultAsync(c => c.UserId == userId && c.Id == confId);
+            if (configuration == null)
+                return NotFound();
             return Ok(configuration);
         }
 
@@ -150,15 +151,11 @@ namespace WebSettingsManager.Controllers
         [HttpPost("{userId:long}/configurations", Name = "PostNewUserConfiguration")]
         public async Task<IActionResult> PostNewConfiguration([FromRoute] UInt64 userId, [FromBody] TextConfigurationData configurationData)
         {
-            var existingUser = await _dbContext.Users
-                .Include(x => x.TextConfigurations)
-                .FirstAsync(x => x.Id == userId);
-
             var newConfiguration = new UserTextConfiguration_Db(userId, configurationData);
+            _dbContext.UserTextConfigurations.Add(newConfiguration);
 
-            existingUser.TextConfigurations.Add(newConfiguration);
             await _dbContext.Instance.SaveChangesAsync();
-            return Ok(existingUser);
+            return Ok(newConfiguration);
         }
 
         /// <summary>
@@ -171,12 +168,12 @@ namespace WebSettingsManager.Controllers
         [HttpPatch("{userId:long}/configurations/{confId:long}", Name = "PatchExistingUserConfiguration")]
         public async Task<IActionResult> PatchConfiguration([FromRoute] UInt64 userId, [FromRoute] UInt64 confId, [FromBody] TextConfigurationData configurationData)
         {
-            var existingUser = await _dbContext.Users
-                .Include(u => u.TextConfigurations)
-                .ThenInclude(c => c.TextConfigurationActualState)
-                .ThenInclude(ss => ss.TextConfigurationOptions)
-                .FirstAsync(x => x.Id == userId);
-            var existingConfiguration = existingUser.TextConfigurations.First(x => x.Id == confId);
+            var existingConfiguration = await _dbContext.UserTextConfigurations
+                .Include(c => c.TextConfigurationActualState)
+                    .ThenInclude(c => c.TextConfigurationOptions)
+                .FirstOrDefaultAsync(c => c.UserId == userId && c.Id == confId);
+            if (existingConfiguration == null)
+                return NotFound();
 
             existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontSize = configurationData.TextConfigurationOptions.FontSize;
             existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontName = configurationData.TextConfigurationOptions.FontName;
@@ -184,7 +181,7 @@ namespace WebSettingsManager.Controllers
                 existingConfiguration.TextConfigurationActualState.ModificationDateTime = DateTime.Now;
 
             await _dbContext.Instance.SaveChangesAsync();
-            return Ok(existingUser);
+            return Ok(existingConfiguration);
         }
 
         /// <summary>
@@ -196,13 +193,15 @@ namespace WebSettingsManager.Controllers
         [HttpDelete("{userId:long}/configurations/{confId:long}", Name = "DeleteExistingUserConfiguration")]
         public async Task<IActionResult> DeleteConfiguration([FromRoute] UInt64 userId, [FromRoute] UInt64 confId)
         {
-            var existingUser = await _dbContext.Users.Include(u => u.TextConfigurations).FirstAsync(x => x.Id == userId);
-            var existingConfiguration = existingUser.TextConfigurations.First(x => x.Id == confId);
-
-            _dbContext.UserTextConfigurations.Remove(existingConfiguration);
+            var existingConfiguration = await _dbContext.UserTextConfigurations
+               .FirstOrDefaultAsync(c => c.UserId == userId && c.Id == confId);
+            if (existingConfiguration == null)
+                return NotFound();
+            var removedConfiguration = _dbContext.UserTextConfigurations
+                .Remove(existingConfiguration);
 
             await _dbContext.Instance.SaveChangesAsync();
-            return Ok(existingUser);
+            return Ok(removedConfiguration.Entity);
         }
 
         /// <summary>
@@ -214,16 +213,15 @@ namespace WebSettingsManager.Controllers
         [HttpGet("{userId:long}/configurations/{confId:long}/saved-states", Name = "GetExistingUserConfigurationSavedStates")]
         public async Task<IActionResult> GetConfigurationSavedStates([FromRoute] UInt64 userId, [FromRoute] UInt64 confId)
         {
-            var existingUser = await _dbContext.Users
-                .Include(u => u.TextConfigurations)
-                .ThenInclude(c => c.TextConfigurationSavedStates)
-                .ThenInclude(s => s.TextConfigurationOptions)
-
-                .FirstAsync(x => x.Id == userId);
-
-            var existingConfiguration = existingUser.TextConfigurations.First(x => x.Id == confId);
-
-            return Ok(existingConfiguration.TextConfigurationSavedStates);
+            var existingConfiguration = await _dbContext.UserTextConfigurations
+               .FirstOrDefaultAsync(c => c.UserId == userId && c.Id == confId);
+            if (existingConfiguration == null)
+                return NotFound();
+            var configurationSavedStates = await _dbContext.TextConfigurationSavedStates
+                .Where(ss => ss.UserTextConfigurationId == confId)
+                .Include(ss => ss.TextConfigurationOptions)
+                .ToListAsync();
+            return Ok(configurationSavedStates);
         }
 
         /// <summary>
@@ -237,11 +235,37 @@ namespace WebSettingsManager.Controllers
         public async Task<IActionResult> GetSpecificSavedStateForConfiguration([FromRoute] UInt64 userId, [FromRoute] UInt64 confId, [FromRoute] UInt64 stateId)
         {
             var existingConfiguration = await _dbContext.UserTextConfigurations
-                .FirstAsync(c => c.UserId == userId && c.Id == confId);
+                .FirstOrDefaultAsync(c => c.UserId == userId && c.Id == confId);
+            if (existingConfiguration == null)
+                return NotFound();
             var savedState = await _dbContext.TextConfigurationSavedStates
-                .FirstAsync(ss => ss.Id == stateId);
-
+                .FirstOrDefaultAsync(ss => ss.Id == stateId && ss.UserTextConfigurationId == confId);
+            if (savedState == null)
+                return NotFound();
             return Ok(savedState);
+        }
+
+        /// <summary>
+        /// Удалить конкретное сохраненное состояние конфигурации пользователя
+        /// </summary>
+        /// <param name="userId"></param>
+        /// <param name="confId"></param>
+        /// <param name="stateId"></param>
+        /// <returns></returns>
+        [HttpDelete("{userId:long}/configurations/{confId:long}/saved-states/{stateId:long}", Name = "DeleteSpecificSavedStateForExistingUserConfiguration")]
+        public async Task<IActionResult> DeleteSpecificSavedStateForConfiguration([FromRoute] UInt64 userId, [FromRoute] UInt64 confId, [FromRoute] UInt64 stateId)
+        {
+            var existingConfiguration = await _dbContext.UserTextConfigurations
+                .FirstOrDefaultAsync(c => c.UserId == userId && c.Id == confId);
+            if (existingConfiguration == null)
+                return NotFound();
+            var savedState = await _dbContext.TextConfigurationSavedStates
+                .FirstOrDefaultAsync(ss => ss.Id == stateId && ss.UserTextConfigurationId == confId);
+            if (savedState == null)
+                return NotFound();
+            var removedState = _dbContext.TextConfigurationSavedStates
+                .Remove(savedState);
+            return Ok(removedState.Entity);
         }
 
         /// <summary>
@@ -253,40 +277,83 @@ namespace WebSettingsManager.Controllers
         [HttpPatch("{userId:long}/configurations/{confId:long}/save-state", Name = "SaveExistingUserConfigurationState")]
         public async Task<IActionResult> SaveConfigurationState([FromRoute] UInt64 userId, [FromRoute] UInt64 confId)
         {
-            var existingUser = await _dbContext.Users
-
-                .Include(u => u.TextConfigurations)
-                .ThenInclude(c => c.TextConfigurationActualState)
+            var existingConfiguration = await _dbContext.UserTextConfigurations
+                .Include(c => c.TextConfigurationActualState)
                 .ThenInclude(s => s.TextConfigurationOptions)
-
-                .Include(u => u.TextConfigurations)
-                .ThenInclude(c => c.TextConfigurationSavedStates)
-                .ThenInclude(s => s.TextConfigurationOptions)
-
-                .FirstAsync(x => x.Id == userId);
-            var existingConfiguration = existingUser.TextConfigurations.First(x => x.Id == confId);
-
+                .FirstOrDefaultAsync(c => c.UserId == userId && c.Id == confId);
+            if (existingConfiguration == null)
+                return NotFound();
             var saveDateTime = DateTime.Now;
             var newSavedState = new TextConfigurationSavedState_Db(existingConfiguration.TextConfigurationActualState, saveDateTime);
-            
-            
-            var addedConfiguration = await _dbContext.TextConfigurationSavedStates.AddAsync(newSavedState);
-            existingConfiguration.TextConfigurationSavedStates.Add(newSavedState);
-
+            var addedSavedState = _dbContext.TextConfigurationSavedStates.Add(newSavedState);
+            existingConfiguration.TextConfigurationActualState.TextConfigurationSavedState = addedSavedState.Entity;
             await _dbContext.Instance.SaveChangesAsync();
-            return Ok(existingUser);
+            return Ok(addedSavedState.Entity);
         }
 
         /// <summary>
-        /// Получить скрипт создания базы данных
+        /// Восстановить определённое сохраненное состояние конфигураиции пользователя
         /// </summary>
+        /// <param name="userId"></param>
+        /// <param name="confId"></param>
         /// <returns></returns>
-        [HttpGet("Dbb", Name = "GetDatabaseCreationScript")]
-        public string DbCreationScript()
+        [HttpPatch("{userId:long}/configurations/{confId:long}/restore-last-saved-state", Name = "RestoreUserConfigurationSpecificSavedState")]
+        public async Task<IActionResult> RestoreConfigurationLastSavedState([FromRoute] UInt64 userId, [FromRoute] UInt64 confId)
         {
-            return _dbContext.Instance.Database.GenerateCreateScript();
+            var existingConfiguration = await _dbContext.UserTextConfigurations
+                .Include(c => c.TextConfigurationActualState)
+                    .ThenInclude(s => s.TextConfigurationSavedState)
+                        .ThenInclude(ss => ss.TextConfigurationOptions)
+                .Include(c => c.TextConfigurationActualState)
+                    .ThenInclude(s => s.TextConfigurationOptions)
+                .FirstOrDefaultAsync(c => c.UserId == userId && c.Id == confId);
+            if (existingConfiguration == null)
+                return NotFound();
+            if (existingConfiguration.TextConfigurationActualState.TextConfigurationSavedState == null)
+                return this.NotFound("No last saved state");
+
+            existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontSize = existingConfiguration.TextConfigurationActualState.TextConfigurationSavedState.TextConfigurationOptions.FontSize;
+            existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontName = existingConfiguration.TextConfigurationActualState.TextConfigurationSavedState.TextConfigurationOptions.FontName;
+            if (_dbContext.Instance.ChangeTracker.HasChanges())
+                existingConfiguration.TextConfigurationActualState.ModificationDateTime = DateTime.Now;
+            await _dbContext.Instance.SaveChangesAsync();
+            return Ok(existingConfiguration.TextConfigurationActualState.TextConfigurationOptions);
         }
 
+        /// <summary>
+        /// Восстановить последнее сохраненное состояние конфигураиции пользователя
+        /// </summary>
+        /// <param name="userId"></param>
+        /// <param name="confId"></param>
+        /// <param name="savedStateId"></param>
+        /// <returns></returns>
+        [HttpPatch("{userId:long}/configurations/{confId:long}/restore-saved-state", Name = "RestoreUserConfigurationLastSavedState")]
+        public async Task<IActionResult> RestoreConfigurationLastSavedState([FromRoute] UInt64 userId, [FromRoute] UInt64 confId, [FromBody] UInt64 savedStateId)
+        {
+            var existingConfiguration = await _dbContext.UserTextConfigurations
+                .Include(c => c.TextConfigurationActualState)
+                    .ThenInclude(s => s.TextConfigurationOptions)
+                .FirstOrDefaultAsync(c => c.UserId == userId && c.Id == confId);
+            if (existingConfiguration == null)
+                return NotFound();
+
+            var savedStateToRestore = await _dbContext.TextConfigurationSavedStates
+                .Include(s => s.TextConfigurationOptions)
+                .FirstOrDefaultAsync(ss => ss.Id == savedStateId && ss.UserTextConfigurationId == confId);
+            if (savedStateToRestore == null)
+                return NotFound();
+
+            
+            existingConfiguration.TextConfigurationActualState.TextConfigurationSavedState = savedStateToRestore;
+            existingConfiguration.TextConfigurationActualState.ModificationDateTime = DateTime.Now;
+            existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontSize = savedStateToRestore.TextConfigurationOptions.FontSize;
+            existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontName = savedStateToRestore.TextConfigurationOptions.FontName;
+            
+            await _dbContext.Instance.SaveChangesAsync();
+            return Ok(existingConfiguration.TextConfigurationActualState.TextConfigurationOptions);
+        }
+
+#pragma warning disable CS1591
         public class UserData : IUser
         {
             public string Username { get; set; } = "";
@@ -301,5 +368,6 @@ namespace WebSettingsManager.Controllers
 
             ITextConfigurationOptions ITextConfiguration.TextConfigurationOptions => TextConfigurationOptions;
         }
+#pragma warning restore CS1591
     }
 }

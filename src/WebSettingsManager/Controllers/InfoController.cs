@@ -1,13 +1,15 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.EntityFrameworkCore;
+using WebSettingsManager.Interfaces;
 
 namespace WebSettingsManager.Controllers
 {
 #if !DEBUG
     [NonController]
 #endif
-    [Route("/-/[controller]")]
+    [Route("/-/info")]
     public class InfoController : Controller
     {
         private readonly IEnumerable<EndpointDataSource> _endpointSources;
@@ -47,6 +49,16 @@ namespace WebSettingsManager.Controllers
             );
 
             return Task.FromResult<ActionResult>(Json(output));
+        }
+
+        /// <summary>
+        /// Получить скрипт создания базы данных
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("get-db-creation-script", Name = "GetDatabaseCreationScript")]
+        public string DbCreationScript([FromServices] IWebSettingsManagerDbContext dbContext)
+        {
+            return dbContext.Instance.Database.GenerateCreateScript();
         }
     }
 }

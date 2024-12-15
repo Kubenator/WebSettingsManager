@@ -1,12 +1,13 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Net.Mail;
+using System.Text.Json.Serialization;
 using WebSettingsManager.Interfaces;
 
-#pragma warning disable CS1591
+
 namespace WebSettingsManager.Models
 {
+#pragma warning disable CS1591
     public class WebSettingsManagerDbContext : DbContext, IWebSettingsManagerDbContext
     {
         public DbSet<User_Db> Users { get; set; } = null!;
@@ -65,6 +66,7 @@ namespace WebSettingsManager.Models
 
 
         public UInt64 UserId { get; set; }
+        [JsonIgnore]
         public User_Db User { get; set; } = null!;
 
         /// <summary>
@@ -102,6 +104,7 @@ namespace WebSettingsManager.Models
         public UInt64 Id { get; set; }
 
         public UInt64 UserTextConfigurationId { get; set; }
+        [JsonIgnore]
         public UserTextConfiguration_Db UserTextConfiguration { get; set; } = null!;
         
 
@@ -140,6 +143,7 @@ namespace WebSettingsManager.Models
         public UInt64 Id { get; set; }
 
         public UInt64 UserTextConfigurationId { get; set; }
+        [JsonIgnore]
         public UserTextConfiguration_Db UserTextConfiguration { get; set; } = null!;
 
 
@@ -165,8 +169,9 @@ namespace WebSettingsManager.Models
         }
         [Key]
         public UInt64 Id { get; set; }
-
+           
         public UInt64 TextConfigurationActualStateId { get; set; }
+        [JsonIgnore]
         public TextConfigurationActualState_Db TextConfigurationActualState { get; set; } = null!;
 
         public string FontName { get; set; } = null!;
@@ -185,9 +190,11 @@ namespace WebSettingsManager.Models
         public UInt64 Id { get; set; }
 
         public UInt64 TextConfigurationSavedStateId { get; set; }
+        [JsonIgnore]
         public TextConfigurationSavedState_Db TextConfigurationSavedState { get; set; } = null!;
 
         public string FontName { get; set; } = null!;
         public int FontSize { get; set; }
     }
+#pragma warning restore CS1591
 }
