@@ -38,6 +38,8 @@ namespace WebSettingsManager
             });
             builder.Services.AddDbContext<WebSettingsManagerDbContext>(options => options.UseSqlite("Data Source=WebSettingsManager.db"));
             builder.Services.AddScoped<IWebSettingsManagerDbContext>(serviceProvider => serviceProvider.GetRequiredService<WebSettingsManagerDbContext>());
+            builder.Services.AddSingleton<IUserWithVersioningTextConfigurationsRepository, UserWithVersioningTextConfigurationsRepository>();
+            //builder.Services.AddScoped<IUserWithVersioningTextConfigurationsRepository, UserWithVersioningTextConfigurationsRepository>();
             var app = builder.Build();
 
             if (app.Environment.IsDevelopment())

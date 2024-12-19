@@ -8,6 +8,11 @@ namespace WebSettingsManager.Interfaces
     public interface IUser
     {
         /// <summary>
+        /// Идентификатор пользователя
+        /// </summary>
+        public UInt64 Id { get; }
+
+        /// <summary>
         /// Логин пользователя
         /// </summary>
         public string Username { get; }

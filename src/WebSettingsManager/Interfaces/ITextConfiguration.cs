@@ -6,14 +6,18 @@
     public interface ITextConfiguration
     {
         /// <summary>
+        /// Идентификатор конфигурации
+        /// </summary>
+        public UInt64 Id { get; set; }
+
+        /// <summary>
         /// Название конфигурации
         /// </summary>
         public string ConfigurationName { get; }
 
-        /// <summary>
-        /// Параметры конфигурации текста
-        /// </summary>
-        public ITextConfigurationOptions TextConfigurationOptions { get; }
-       
+        ///// <summary>
+        ///// Актуальное состояние конфигурации
+        ///// </summary>
+        //ITextConfigurationActualState TextConfigurationActualState { get; }
     }
 }

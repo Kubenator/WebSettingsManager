@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using WebSettingsManager.Interfaces;
 using WebSettingsManager.Models;
+using static WebSettingsManager.Models.UserWithVersioningTextConfigurationsRepository;
 
 namespace WebSettingsManager.Controllers
 {
@@ -15,17 +18,19 @@ namespace WebSettingsManager.Controllers
     {
 
         private readonly ILogger<UsersController> _logger;
-        private readonly IWebSettingsManagerDbContext _dbContext;
+        private readonly IUserWithVersioningTextConfigurationsRepository _userRepository;
+        //private readonly IWebSettingsManagerDbContext _dbContext;
 
         /// <summary>
         /// Создание экземпляра контроллера на основе контекста БД и логгера
         /// </summary>
-        /// <param name="dbContext"></param>
+        /// <param name="userRepository"></param>
         /// <param name="logger"></param>
-        public UsersController(IWebSettingsManagerDbContext dbContext, ILogger<UsersController> logger)
+        public UsersController(/*IWebSettingsManagerDbContext dbContext, */IUserWithVersioningTextConfigurationsRepository userRepository, ILogger<UsersController> logger)
         {
             _logger = logger;
-            _dbContext = dbContext;
+            _userRepository = userRepository;
+            //_dbContext = dbContext;
         }
 
         /// <summary>
@@ -35,9 +40,19 @@ namespace WebSettingsManager.Controllers
         [HttpGet("", Name = "GetAllUsers")]
         public async Task<IActionResult> GetUsers()
         {
-            var users = await _dbContext.Users
-                .ToListAsync();
-            return Ok(users);
+            try
+            {
+                var users = await _userRepository.GetAllUsers();
+                return Ok(users);
+            }
+            catch (UserRepositoryItemNotFoundExceprion ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return Problem(ex.InnerException?.Message ?? ex.Message);
+            }
         }
 
         /// <summary>
@@ -48,10 +63,19 @@ namespace WebSettingsManager.Controllers
         [HttpPost("", Name = "PostNewUser")]
         public async Task<IActionResult> PostNewUser([FromBody] UserData user)
         {
-            var userToAdd = new User_Db() { Username = user.Username, Name = user.Name };
-            var addedUser = _dbContext.Users.Add(userToAdd);
-            await _dbContext.Instance.SaveChangesAsync();
-            return Ok(addedUser.Entity);
+            try
+            {
+                var addedUser = await _userRepository.AddUser(user);
+                return Ok(addedUser);
+            }
+            catch (UserRepositoryItemNotFoundExceprion ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return Problem(ex.InnerException?.Message ?? ex.Message);
+            }
         }
 
         /// <summary>
@@ -62,11 +86,19 @@ namespace WebSettingsManager.Controllers
         [HttpGet("{userId:long}", Name = "GetExistingUserById")]
         public async Task<IActionResult> GetUserById([FromRoute] UInt64 userId)
         {
-            var existingUser = await _dbContext.Users
-                .FirstOrDefaultAsync(u => u.Id == userId);
-            if (existingUser == null)
-                return NotFound();
-            return Ok(existingUser);
+            try
+            {
+                var existingUser = await _userRepository.GetUser(userId);
+                return Ok(existingUser);
+            }
+            catch (UserRepositoryItemNotFoundExceprion ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return Problem(ex.InnerException?.Message ?? ex.Message);
+            }
         }
 
         /// <summary>
@@ -78,14 +110,19 @@ namespace WebSettingsManager.Controllers
         [HttpPatch("{userId:long}", Name = "PatchExistingUserById")]
         public async Task<IActionResult> PatchUser([FromRoute] UInt64 userId, [FromBody] UserData user)
         {
-            var existingUser = await _dbContext.Users
-                .FirstOrDefaultAsync(x => x.Id == userId);
-            if (existingUser == null)
-                return NotFound();
-            existingUser.Username = user.Username;
-            existingUser.Name = user.Name;
-            await _dbContext.Instance.SaveChangesAsync();
-            return Ok(existingUser);
+            try
+            {
+                var updatedUser = await _userRepository.UpdateUser(userId, user);
+                return Ok(updatedUser);
+            }
+            catch (UserRepositoryItemNotFoundExceprion ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return Problem(ex.InnerException?.Message ?? ex.Message);
+            }
         }
 
         /// <summary>
@@ -96,13 +133,19 @@ namespace WebSettingsManager.Controllers
         [HttpDelete("{userId:long}", Name = "DeleteExistingUserById")]
         public async Task<IActionResult> DeleteUser([FromRoute] UInt64 userId)
         {
-            var existingUser = await _dbContext.Users
-                .FirstOrDefaultAsync(x => x.Id == userId);
-            if (existingUser == null)
-                return NotFound();
-            _dbContext.Users.Remove(existingUser);
-            await _dbContext.Instance.SaveChangesAsync();
-            return Ok(existingUser);
+            try
+            {
+                var deletedUser = await _userRepository.RemoveUser(userId);
+                return Ok(deletedUser);
+            }
+            catch (UserRepositoryItemNotFoundExceprion ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return Problem(ex.InnerException?.Message ?? ex.Message);
+            }
         }
 
         /// <summary>
@@ -114,27 +157,21 @@ namespace WebSettingsManager.Controllers
         [HttpGet("{userId:long}/configurations", Name = "GetConfigurationsForSpecificUser")]
         public async Task<IActionResult> GetConfigurationsForSpecificUser([FromRoute] UInt64 userId, [FromQuery] ConfigurationFilterOptions configurationFilterOptions)
         {
-            var iQueryableConfigurations = _dbContext.UserTextConfigurations
-                .Include(c => c.TextConfigurationActualState)
-                    .ThenInclude(s => s.TextConfigurationOptions)
-                .Where(x => x.UserId == userId);
-
-            FilterItems(ref iQueryableConfigurations, configurationFilterOptions);
-
-            var configurations = await iQueryableConfigurations
-                .ToListAsync();
-            return Ok(configurations);
-
-            void FilterItems(ref IQueryable<UserTextConfiguration_Db> items, ConfigurationFilterOptions filterOptions)
+            try
             {
-                if (filterOptions.CreationDateTimeOlderThanOrEqual != null)
-                    items = items.Where(c => c.TextConfigurationActualState.CreationDateTime >= filterOptions.CreationDateTimeOlderThanOrEqual);
-                if (filterOptions.CreationDateTimeEarlierThanOrEqual != null)
-                    items = items.Where(c => c.TextConfigurationActualState.CreationDateTime <= filterOptions.CreationDateTimeEarlierThanOrEqual);
-                if (filterOptions.ConfigurationNameTemplate != null)
-                    items = items.Where(c => Regex.IsMatch(c.ConfigurationName, filterOptions.ConfigurationNameTemplate.Replace("*", ".*")));
+                var configurations = await _userRepository.GetUserConfigurations(userId, configurationFilterOptions);
+                return Ok(configurations);
+            }
+            catch (UserRepositoryItemNotFoundExceprion ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return Problem(ex.InnerException?.Message ?? ex.Message);
             }
         }
+
 
         /// <summary>
         /// Получить конкретную конфигурацию для конкретного пользователя
@@ -145,16 +182,19 @@ namespace WebSettingsManager.Controllers
         [HttpGet("{userId:long}/configurations/{confId:long}", Name = "GetConfigurationForUser")]
         public async Task<IActionResult> GetSpecificConfigurationForSpecificUser([FromRoute] UInt64 userId, [FromRoute] UInt64 confId)
         {
-            var configuration = await _dbContext.UserTextConfigurations
-                .Include(c => c.TextConfigurationActualState)
-                    .ThenInclude(c => c.TextConfigurationOptions)
-                .Include(ss => ss.TextConfigurationActualState)
-                    .ThenInclude(s => s.TextConfigurationSavedState)
-                        .ThenInclude(s => s.TextConfigurationOptions)
-                .FirstOrDefaultAsync(c => c.UserId == userId && c.Id == confId);
-            if (configuration == null)
-                return NotFound();
-            return Ok(configuration);
+            try
+            {
+                var configuration = await _userRepository.GetUserConfiguration(userId, confId);
+                return Ok(configuration);
+            }
+            catch (UserRepositoryItemNotFoundExceprion ex)
+            {
+                return NotFound(ex.InnerException?.Message ?? ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return Problem(ex.InnerException?.Message ?? ex.Message);
+            }
         }
 
         /// <summary>
@@ -166,11 +206,20 @@ namespace WebSettingsManager.Controllers
         [HttpPost("{userId:long}/configurations", Name = "PostNewUserConfiguration")]
         public async Task<IActionResult> PostNewConfiguration([FromRoute] UInt64 userId, [FromBody] TextConfigurationData configurationData)
         {
-            var newConfiguration = new UserTextConfiguration_Db(userId, configurationData);
-            _dbContext.UserTextConfigurations.Add(newConfiguration);
-
-            await _dbContext.Instance.SaveChangesAsync();
-            return Ok(newConfiguration);
+            try
+            {
+                var configuration = await _userRepository.AddUserConfiguration(userId, configurationData);
+                return Ok(configuration);
+            }
+            catch (UserRepositoryItemNotFoundExceprion ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                var type = ex.GetType();
+                return Problem(ex.InnerException?.Message ?? ex.Message);
+            }
         }
 
         /// <summary>
@@ -183,20 +232,20 @@ namespace WebSettingsManager.Controllers
         [HttpPatch("{userId:long}/configurations/{confId:long}", Name = "PatchExistingUserConfiguration")]
         public async Task<IActionResult> PatchConfiguration([FromRoute] UInt64 userId, [FromRoute] UInt64 confId, [FromBody] TextConfigurationData configurationData)
         {
-            var existingConfiguration = await _dbContext.UserTextConfigurations
-                .Include(c => c.TextConfigurationActualState)
-                    .ThenInclude(c => c.TextConfigurationOptions)
-                .FirstOrDefaultAsync(c => c.UserId == userId && c.Id == confId);
-            if (existingConfiguration == null)
-                return NotFound();
-
-            existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontSize = configurationData.TextConfigurationOptions.FontSize;
-            existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontName = configurationData.TextConfigurationOptions.FontName;
-            if (_dbContext.Instance.ChangeTracker.HasChanges())
-                existingConfiguration.TextConfigurationActualState.ModificationDateTime = DateTime.Now;
-
-            await _dbContext.Instance.SaveChangesAsync();
-            return Ok(existingConfiguration);
+            try
+            {
+                var configuration = await _userRepository.UpdateUserConfiguration(userId, confId, configurationData);
+                return Ok(configuration);
+            }
+            catch (UserRepositoryItemNotFoundExceprion ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                var type = ex.GetType();
+                return Problem(ex.InnerException?.Message ?? ex.Message);
+            }
         }
 
         /// <summary>
@@ -208,15 +257,20 @@ namespace WebSettingsManager.Controllers
         [HttpDelete("{userId:long}/configurations/{confId:long}", Name = "DeleteExistingUserConfiguration")]
         public async Task<IActionResult> DeleteConfiguration([FromRoute] UInt64 userId, [FromRoute] UInt64 confId)
         {
-            var existingConfiguration = await _dbContext.UserTextConfigurations
-               .FirstOrDefaultAsync(c => c.UserId == userId && c.Id == confId);
-            if (existingConfiguration == null)
-                return NotFound();
-            var removedConfiguration = _dbContext.UserTextConfigurations
-                .Remove(existingConfiguration);
-
-            await _dbContext.Instance.SaveChangesAsync();
-            return Ok(removedConfiguration.Entity);
+            try
+            {
+                var configuration = await _userRepository.RemoveUserConfiguration(userId, confId);
+                return Ok(configuration);
+            }
+            catch (UserRepositoryItemNotFoundExceprion ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                var type = ex.GetType();
+                return Problem(ex.InnerException?.Message ?? ex.Message);
+            }
         }
 
         /// <summary>
@@ -228,15 +282,20 @@ namespace WebSettingsManager.Controllers
         [HttpGet("{userId:long}/configurations/{confId:long}/saved-states", Name = "GetExistingUserConfigurationSavedStates")]
         public async Task<IActionResult> GetConfigurationSavedStates([FromRoute] UInt64 userId, [FromRoute] UInt64 confId)
         {
-            var existingConfiguration = await _dbContext.UserTextConfigurations
-               .FirstOrDefaultAsync(c => c.UserId == userId && c.Id == confId);
-            if (existingConfiguration == null)
-                return NotFound();
-            var configurationSavedStates = await _dbContext.TextConfigurationSavedStates
-                .Where(ss => ss.UserTextConfigurationId == confId)
-                .Include(ss => ss.TextConfigurationOptions)
-                .ToListAsync();
-            return Ok(configurationSavedStates);
+            try
+            {
+                var savedStates = await _userRepository.GetUserConfigurationSavedStates(userId, confId);
+                return Ok(savedStates);
+            }
+            catch (UserRepositoryItemNotFoundExceprion ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                var type = ex.GetType();
+                return Problem(ex.InnerException?.Message ?? ex.Message);
+            }
         }
 
         /// <summary>
@@ -249,15 +308,20 @@ namespace WebSettingsManager.Controllers
         [HttpGet("{userId:long}/configurations/{confId:long}/saved-states/{stateId:long}", Name = "GetSpecificSavedStateForExistingUserConfiguration")]
         public async Task<IActionResult> GetSpecificSavedStateForConfiguration([FromRoute] UInt64 userId, [FromRoute] UInt64 confId, [FromRoute] UInt64 stateId)
         {
-            var existingConfiguration = await _dbContext.UserTextConfigurations
-                .FirstOrDefaultAsync(c => c.UserId == userId && c.Id == confId);
-            if (existingConfiguration == null)
-                return NotFound();
-            var savedState = await _dbContext.TextConfigurationSavedStates
-                .FirstOrDefaultAsync(ss => ss.Id == stateId && ss.UserTextConfigurationId == confId);
-            if (savedState == null)
-                return NotFound();
-            return Ok(savedState);
+            try
+            {
+                var savedState = await _userRepository.GetUserConfigurationSavedState(userId, confId, stateId);
+                return Ok(savedState);
+            }
+            catch (UserRepositoryItemNotFoundExceprion ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                var type = ex.GetType();
+                return Problem(ex.InnerException?.Message ?? ex.Message);
+            }
         }
 
         /// <summary>
@@ -270,17 +334,20 @@ namespace WebSettingsManager.Controllers
         [HttpDelete("{userId:long}/configurations/{confId:long}/saved-states/{stateId:long}", Name = "DeleteSpecificSavedStateForExistingUserConfiguration")]
         public async Task<IActionResult> DeleteSpecificSavedStateForConfiguration([FromRoute] UInt64 userId, [FromRoute] UInt64 confId, [FromRoute] UInt64 stateId)
         {
-            var existingConfiguration = await _dbContext.UserTextConfigurations
-                .FirstOrDefaultAsync(c => c.UserId == userId && c.Id == confId);
-            if (existingConfiguration == null)
-                return NotFound();
-            var savedState = await _dbContext.TextConfigurationSavedStates
-                .FirstOrDefaultAsync(ss => ss.Id == stateId && ss.UserTextConfigurationId == confId);
-            if (savedState == null)
-                return NotFound();
-            var removedState = _dbContext.TextConfigurationSavedStates
-                .Remove(savedState);
-            return Ok(removedState.Entity);
+            try
+            {
+                var removedState = await _userRepository.RemoveUserConfigurationSavedState(userId, confId, stateId);
+                return Ok(removedState);
+            }
+            catch (UserRepositoryItemNotFoundExceprion ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                var type = ex.GetType();
+                return Problem(ex.InnerException?.Message ?? ex.Message);
+            }
         }
 
         /// <summary>
@@ -292,47 +359,45 @@ namespace WebSettingsManager.Controllers
         [HttpPatch("{userId:long}/configurations/{confId:long}/save-state", Name = "SaveExistingUserConfigurationState")]
         public async Task<IActionResult> SaveConfigurationState([FromRoute] UInt64 userId, [FromRoute] UInt64 confId)
         {
-            var existingConfiguration = await _dbContext.UserTextConfigurations
-                .Include(c => c.TextConfigurationActualState)
-                .ThenInclude(s => s.TextConfigurationOptions)
-                .FirstOrDefaultAsync(c => c.UserId == userId && c.Id == confId);
-            if (existingConfiguration == null)
-                return NotFound();
-            var saveDateTime = DateTime.Now;
-            var newSavedState = new TextConfigurationSavedState_Db(existingConfiguration.TextConfigurationActualState, saveDateTime);
-            var addedSavedState = _dbContext.TextConfigurationSavedStates.Add(newSavedState);
-            existingConfiguration.TextConfigurationActualState.TextConfigurationSavedState = addedSavedState.Entity;
-            await _dbContext.Instance.SaveChangesAsync();
-            return Ok(addedSavedState.Entity);
+            try
+            {
+                var savedState = await _userRepository.SaveUserConfigurationState(userId, confId);
+                return Ok(savedState);
+            }
+            catch (UserRepositoryItemNotFoundExceprion ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                var type = ex.GetType();
+                return Problem(ex.InnerException?.Message ?? ex.Message);
+            }
         }
 
         /// <summary>
-        /// Восстановить определённое сохраненное состояние конфигураиции пользователя
+        /// Восстановить последнее сохраненное состояние конфигураиции пользователя
         /// </summary>
         /// <param name="userId"></param>
         /// <param name="confId"></param>
         /// <returns></returns>
-        [HttpPatch("{userId:long}/configurations/{confId:long}/restore-last-saved-state", Name = "RestoreUserConfigurationSpecificSavedState")]
+        [HttpPatch("{userId:long}/configurations/{confId:long}/restore-last-saved-state", Name = "RestoreUserConfigurationLastSavedState")]
         public async Task<IActionResult> RestoreConfigurationLastSavedState([FromRoute] UInt64 userId, [FromRoute] UInt64 confId)
         {
-            var existingConfiguration = await _dbContext.UserTextConfigurations
-                .Include(c => c.TextConfigurationActualState)
-                    .ThenInclude(s => s.TextConfigurationSavedState)
-                        .ThenInclude(ss => ss.TextConfigurationOptions)
-                .Include(c => c.TextConfigurationActualState)
-                    .ThenInclude(s => s.TextConfigurationOptions)
-                .FirstOrDefaultAsync(c => c.UserId == userId && c.Id == confId);
-            if (existingConfiguration == null)
-                return NotFound();
-            if (existingConfiguration.TextConfigurationActualState.TextConfigurationSavedState == null)
-                return this.NotFound("No last saved state");
-
-            existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontSize = existingConfiguration.TextConfigurationActualState.TextConfigurationSavedState.TextConfigurationOptions.FontSize;
-            existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontName = existingConfiguration.TextConfigurationActualState.TextConfigurationSavedState.TextConfigurationOptions.FontName;
-            if (_dbContext.Instance.ChangeTracker.HasChanges())
-                existingConfiguration.TextConfigurationActualState.ModificationDateTime = DateTime.Now;
-            await _dbContext.Instance.SaveChangesAsync();
-            return Ok(existingConfiguration.TextConfigurationActualState.TextConfigurationOptions);
+            try
+            {
+                var configuration = await _userRepository.RestoreUserConfigurationLastSavedState(userId, confId);
+                return Ok(configuration);
+            }
+            catch (UserRepositoryItemNotFoundExceprion ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                var type = ex.GetType();
+                return Problem(ex.InnerException?.Message ?? ex.Message);
+            }
         }
 
         /// <summary>
@@ -342,30 +407,23 @@ namespace WebSettingsManager.Controllers
         /// <param name="confId"></param>
         /// <param name="savedStateId"></param>
         /// <returns></returns>
-        [HttpPatch("{userId:long}/configurations/{confId:long}/restore-saved-state", Name = "RestoreUserConfigurationLastSavedState")]
-        public async Task<IActionResult> RestoreConfigurationLastSavedState([FromRoute] UInt64 userId, [FromRoute] UInt64 confId, [FromBody] UInt64 savedStateId)
+        [HttpPatch("{userId:long}/configurations/{confId:long}/restore-specific-saved-state", Name = "RestoreUserConfigurationSpecificSavedState")]
+        public async Task<IActionResult> RestoreConfigurationSpecificSavedState([FromRoute] UInt64 userId, [FromRoute] UInt64 confId, [FromBody] UInt64 savedStateId)
         {
-            var existingConfiguration = await _dbContext.UserTextConfigurations
-                .Include(c => c.TextConfigurationActualState)
-                    .ThenInclude(s => s.TextConfigurationOptions)
-                .FirstOrDefaultAsync(c => c.UserId == userId && c.Id == confId);
-            if (existingConfiguration == null)
-                return NotFound();
-
-            var savedStateToRestore = await _dbContext.TextConfigurationSavedStates
-                .Include(s => s.TextConfigurationOptions)
-                .FirstOrDefaultAsync(ss => ss.Id == savedStateId && ss.UserTextConfigurationId == confId);
-            if (savedStateToRestore == null)
-                return NotFound();
-
-            
-            existingConfiguration.TextConfigurationActualState.TextConfigurationSavedState = savedStateToRestore;
-            existingConfiguration.TextConfigurationActualState.ModificationDateTime = DateTime.Now;
-            existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontSize = savedStateToRestore.TextConfigurationOptions.FontSize;
-            existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontName = savedStateToRestore.TextConfigurationOptions.FontName;
-            
-            await _dbContext.Instance.SaveChangesAsync();
-            return Ok(existingConfiguration.TextConfigurationActualState.TextConfigurationOptions);
+            try
+            {
+                var configuration = await _userRepository.RestoreUserConfigurationSavedState(userId, confId, savedStateId);
+                return Ok(configuration);
+            }
+            catch (UserRepositoryItemNotFoundExceprion ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                var type = ex.GetType();
+                return Problem(ex.InnerException?.Message ?? ex.Message);
+            }
         }
 
         /// <summary>
@@ -389,21 +447,33 @@ namespace WebSettingsManager.Controllers
             public DateTime? CreationDateTimeOlderThanOrEqual { get; set; } = null;
         }
 
-#pragma warning disable CS1591
-        public class UserData : IUser
-        {
-            public string Username { get; set; } = "";
 
-            public string Name { get; set; } = "";
-        }
-        public class TextConfigurationData : ITextConfiguration
-        {
-            public string ConfigurationName { get; set; } = "";
-
-            public TextConfigurationOptions TextConfigurationOptions { get; set; } = new TextConfigurationOptions();
-
-            ITextConfigurationOptions ITextConfiguration.TextConfigurationOptions => TextConfigurationOptions;
-        }
-#pragma warning restore CS1591
     }
+#pragma warning disable CS1591
+    public class UserData
+    {
+        public string Username { get; set; } = "";
+
+        public string Name { get; set; } = "";
+    }
+    public class TextConfigurationData
+    {
+        public string ConfigurationName { get; set; } = "";
+
+        public TextConfigurationOptions TextConfigurationOptions { get; set; } = new TextConfigurationOptions();
+    }
+    public class TextConfigurationOptions
+    {
+        [JsonConstructor]
+        public TextConfigurationOptions(string fontName = "Consolas", int fontSize = 12)
+        {
+            this.FontName = fontName;
+            this.FontSize = fontSize;
+        }
+        public string FontName { get; }
+
+        public int FontSize { get; }
+
+    }
+#pragma warning restore CS1591
 }

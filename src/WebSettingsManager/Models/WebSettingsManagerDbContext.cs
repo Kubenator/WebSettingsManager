@@ -2,6 +2,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
+using WebSettingsManager.Controllers;
 using WebSettingsManager.Interfaces;
 
 
@@ -56,7 +57,7 @@ namespace WebSettingsManager.Models
     public class UserTextConfiguration_Db : ITextConfiguration
     {
         public UserTextConfiguration_Db() { }
-        public UserTextConfiguration_Db(UInt64 userId, ITextConfiguration textConfiguration)
+        public UserTextConfiguration_Db(UInt64 userId, TextConfigurationData textConfiguration)
         {
             UserId = userId;
             ConfigurationName = textConfiguration.ConfigurationName;
@@ -88,13 +89,14 @@ namespace WebSettingsManager.Models
         /// </summary>
         public List<TextConfigurationSavedState_Db> TextConfigurationSavedStates { get; set; } = new();
 
-        [NotMapped]
-        ITextConfigurationOptions ITextConfiguration.TextConfigurationOptions => TextConfigurationActualState.TextConfigurationOptions;
+        //[NotMapped]
+        //ITextConfigurationActualState ITextConfiguration.TextConfigurationActualState => TextConfigurationActualState;
+
     }
-    public class TextConfigurationActualState_Db
+    public class TextConfigurationActualState_Db : ITextConfigurationActualState
     {
         public TextConfigurationActualState_Db() { }
-        public TextConfigurationActualState_Db(ITextConfigurationOptions textConfigurationOptions, UserTextConfiguration_Db userTextConfiguration)
+        public TextConfigurationActualState_Db(TextConfigurationOptions textConfigurationOptions, UserTextConfiguration_Db userTextConfiguration)
         {
             var dt = DateTime.UtcNow;
             CreationDateTime = dt;
@@ -131,7 +133,9 @@ namespace WebSettingsManager.Models
         /// Сохраненное состояние
         /// </summary>        
         public TextConfigurationSavedState_Db? TextConfigurationSavedState { get; set; } = null!;
-        
+
+        //[NotMapped]
+        //ITextConfigurationOptions ITextConfigurationActualState.TextConfigurationOptions => TextConfigurationOptions;
     }
     public class TextConfigurationSavedState_Db
     {
@@ -164,7 +168,7 @@ namespace WebSettingsManager.Models
     public class TextConfigurationOptions_Actual_Db : ITextConfigurationOptions
     {
         public TextConfigurationOptions_Actual_Db() { }
-        public TextConfigurationOptions_Actual_Db(TextConfigurationActualState_Db textConfigurationActualState, ITextConfigurationOptions textConfigurationOptions)
+        public TextConfigurationOptions_Actual_Db(TextConfigurationActualState_Db textConfigurationActualState, TextConfigurationOptions textConfigurationOptions)
         { 
             TextConfigurationActualStateId = textConfigurationActualState.Id;
             FontName = textConfigurationOptions.FontName;
