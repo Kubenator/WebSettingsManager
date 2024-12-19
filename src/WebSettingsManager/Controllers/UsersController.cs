@@ -1,8 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
 using WebSettingsManager.Interfaces;
 using WebSettingsManager.Models;
 using static WebSettingsManager.Models.UserWithVersioningTextConfigurationsRepository;
@@ -19,18 +16,16 @@ namespace WebSettingsManager.Controllers
 
         private readonly ILogger<UsersController> _logger;
         private readonly IUserWithVersioningTextConfigurationsRepository _userRepository;
-        //private readonly IWebSettingsManagerDbContext _dbContext;
 
         /// <summary>
         /// Создание экземпляра контроллера на основе контекста БД и логгера
         /// </summary>
         /// <param name="userRepository"></param>
         /// <param name="logger"></param>
-        public UsersController(/*IWebSettingsManagerDbContext dbContext, */IUserWithVersioningTextConfigurationsRepository userRepository, ILogger<UsersController> logger)
+        public UsersController(IUserWithVersioningTextConfigurationsRepository userRepository, ILogger<UsersController> logger)
         {
             _logger = logger;
             _userRepository = userRepository;
-            //_dbContext = dbContext;
         }
 
         /// <summary>
@@ -61,7 +56,7 @@ namespace WebSettingsManager.Controllers
         /// <param name="user"></param>
         /// <returns></returns>
         [HttpPost("", Name = "PostNewUser")]
-        public async Task<IActionResult> PostNewUser([FromBody] UserData user)
+        public async Task<IActionResult> PostNewUser([FromBody] User_RequestData user)
         {
             try
             {
@@ -108,7 +103,7 @@ namespace WebSettingsManager.Controllers
         /// <param name="user"></param>
         /// <returns></returns>
         [HttpPatch("{userId:long}", Name = "PatchExistingUserById")]
-        public async Task<IActionResult> PatchUser([FromRoute] UInt64 userId, [FromBody] UserData user)
+        public async Task<IActionResult> PatchUser([FromRoute] UInt64 userId, [FromBody] User_RequestData user)
         {
             try
             {
@@ -204,7 +199,7 @@ namespace WebSettingsManager.Controllers
         /// <param name="configurationData"></param>
         /// <returns></returns>
         [HttpPost("{userId:long}/configurations", Name = "PostNewUserConfiguration")]
-        public async Task<IActionResult> PostNewConfiguration([FromRoute] UInt64 userId, [FromBody] TextConfigurationData configurationData)
+        public async Task<IActionResult> PostNewConfiguration([FromRoute] UInt64 userId, [FromBody] UserTextConfiguration_RequestData configurationData)
         {
             try
             {
@@ -230,7 +225,7 @@ namespace WebSettingsManager.Controllers
         /// <param name="configurationData"></param>
         /// <returns></returns>
         [HttpPatch("{userId:long}/configurations/{confId:long}", Name = "PatchExistingUserConfiguration")]
-        public async Task<IActionResult> PatchConfiguration([FromRoute] UInt64 userId, [FromRoute] UInt64 confId, [FromBody] TextConfigurationData configurationData)
+        public async Task<IActionResult> PatchConfiguration([FromRoute] UInt64 userId, [FromRoute] UInt64 confId, [FromBody] UserTextConfiguration_RequestData configurationData)
         {
             try
             {
@@ -447,33 +442,64 @@ namespace WebSettingsManager.Controllers
             public DateTime? CreationDateTimeOlderThanOrEqual { get; set; } = null;
         }
 
-
-    }
-#pragma warning disable CS1591
-    public class UserData
-    {
-        public string Username { get; set; } = "";
-
-        public string Name { get; set; } = "";
-    }
-    public class TextConfigurationData
-    {
-        public string ConfigurationName { get; set; } = "";
-
-        public TextConfigurationOptions TextConfigurationOptions { get; set; } = new TextConfigurationOptions();
-    }
-    public class TextConfigurationOptions
-    {
-        [JsonConstructor]
-        public TextConfigurationOptions(string fontName = "Consolas", int fontSize = 12)
+        /// <summary>
+        /// Данные пользователя, получаемые в теле запроса
+        /// </summary>
+        public class User_RequestData
         {
-            this.FontName = fontName;
-            this.FontSize = fontSize;
+            /// <summary>
+            /// <inheritdoc cref="User_Db.Username"/>
+            /// </summary>
+            public string Username { get; set; } = "";
+
+            /// <summary>
+            /// <inheritdoc cref="User_Db.Name"/>
+            /// </summary>
+            public string Name { get; set; } = "";
         }
-        public string FontName { get; }
 
-        public int FontSize { get; }
+        /// <summary>
+        /// Данные конфигурации пользователя, получаемые в теле запроса
+        /// </summary>
+        public class UserTextConfiguration_RequestData
+        {
+            /// <summary>
+            /// <inheritdoc cref="UserTextConfiguration_Db.ConfigurationName"/>
+            /// </summary>
+            public string ConfigurationName { get; set; } = "";
 
+            /// <summary>
+            /// <inheritdoc cref="TextConfigurationActualState_Db.TextConfigurationOptions"/>
+            /// </summary>
+            public TextConfigurationOptions_RequestData TextConfigurationOptions { get; set; } = new TextConfigurationOptions_RequestData();
+        }
+
+        /// <summary>
+        /// Опции конфигурации текста, получаемые в теле запроса
+        /// </summary>
+        public class TextConfigurationOptions_RequestData
+        {
+            /// <summary>
+            /// Конструктор с параметрами по-умолчанию
+            /// </summary>
+            /// <param name="fontName"></param>
+            /// <param name="fontSize"></param>
+            [JsonConstructor]
+            public TextConfigurationOptions_RequestData(string fontName = "Consolas", int fontSize = 12)
+            {
+                this.FontName = fontName;
+                this.FontSize = fontSize;
+            }
+
+            /// <summary>
+            /// Название шрифта
+            /// </summary>
+            public string FontName { get; }
+
+            /// <summary>
+            /// Размер шрифта
+            /// </summary>
+            public int FontSize { get; }
+        }
     }
-#pragma warning restore CS1591
 }

@@ -1,6 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
-using WebSettingsManager.Controllers;
 using WebSettingsManager.Interfaces;
 using static WebSettingsManager.Controllers.UsersController;
 
@@ -34,7 +33,7 @@ namespace WebSettingsManager.Models
         /// </summary>
         /// <param name="user"></param>
         /// <returns></returns>
-        public async Task<User_Db> AddUser(UserData user)
+        public async Task<User_Db> AddUser(User_RequestData user)
         {
             using var scope = _scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<IWebSettingsManagerDbContext>();
@@ -89,7 +88,7 @@ namespace WebSettingsManager.Models
         /// <param name="userId"></param>
         /// <param name="user"></param>
         /// <returns></returns>
-        public async Task<User_Db> UpdateUser(UInt64 userId, UserData user)
+        public async Task<User_Db> UpdateUser(UInt64 userId, User_RequestData user)
         {
             using var scope = _scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<IWebSettingsManagerDbContext>();
@@ -170,7 +169,7 @@ namespace WebSettingsManager.Models
         /// <param name="userId"></param>
         /// <param name="configurationData"></param>
         /// <returns></returns>
-        public async Task<UserTextConfiguration_Db> AddUserConfiguration(UInt64 userId, TextConfigurationData configurationData)
+        public async Task<UserTextConfiguration_Db> AddUserConfiguration(UInt64 userId, UserTextConfiguration_RequestData configurationData)
         {
             using var scope = _scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<IWebSettingsManagerDbContext>();
@@ -192,7 +191,7 @@ namespace WebSettingsManager.Models
         /// <param name="userId"></param>
         /// <param name="confId"></param>
         /// <param name="configurationData"></param>
-        public async Task<UserTextConfiguration_Db> UpdateUserConfiguration(UInt64 userId, UInt64 confId, TextConfigurationData configurationData)
+        public async Task<UserTextConfiguration_Db> UpdateUserConfiguration(UInt64 userId, UInt64 confId, UserTextConfiguration_RequestData configurationData)
         {
             using var scope = _scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<IWebSettingsManagerDbContext>();

@@ -1,6 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using WebSettingsManager.Controllers;
-using WebSettingsManager.Models;
+﻿using WebSettingsManager.Models;
 using static WebSettingsManager.Controllers.UsersController;
 
 namespace WebSettingsManager.Interfaces
@@ -22,7 +20,7 @@ namespace WebSettingsManager.Interfaces
         /// </summary>
         /// <param name="user"></param>
         /// <returns></returns>
-        public Task<User_Db> AddUser(UserData user);
+        public Task<User_Db> AddUser(User_RequestData user);
 
         /// <summary>
         /// Удалить пользователя
@@ -43,7 +41,7 @@ namespace WebSettingsManager.Interfaces
         /// <param name="userId"></param>
         /// <param name="user"></param>
         /// <returns></returns>
-        public Task<User_Db> UpdateUser(UInt64 userId, UserData user);
+        public Task<User_Db> UpdateUser(UInt64 userId, User_RequestData user);
         #endregion ManageUseres
 
 
@@ -70,7 +68,7 @@ namespace WebSettingsManager.Interfaces
         /// <param name="userId"></param>
         /// <param name="configurationData"></param>
         /// <returns></returns>
-        public Task<UserTextConfiguration_Db> AddUserConfiguration(UInt64 userId, TextConfigurationData configurationData);
+        public Task<UserTextConfiguration_Db> AddUserConfiguration(UInt64 userId, UserTextConfiguration_RequestData configurationData);
 
         /// <summary>
         /// Обновить конфигурацию пользователя
@@ -78,7 +76,7 @@ namespace WebSettingsManager.Interfaces
         /// <param name="userId"></param>
         /// <param name="confId"></param>
         /// <param name="configurationData"></param>
-        public Task<UserTextConfiguration_Db> UpdateUserConfiguration(UInt64 userId, UInt64 confId, TextConfigurationData configurationData);
+        public Task<UserTextConfiguration_Db> UpdateUserConfiguration(UInt64 userId, UInt64 confId, UserTextConfiguration_RequestData configurationData);
 
         /// <summary>
         /// Удалить конфигурацию у пользователя
