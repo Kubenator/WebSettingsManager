@@ -45,7 +45,6 @@ namespace WebSettingsManager
                 // Доступен на http://localhost:5197/swagger/v1/swagger.yaml
                 app.UseSwaggerUI();
             }
-            app.UseAuthorization();
             app.MapControllers();
             app.Run();
         }
