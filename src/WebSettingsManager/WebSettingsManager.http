@@ -1,6 +1,6 @@
 @WebSettingsManager_HostAddress = http://localhost:5197
 
-GET {{WebSettingsManager_HostAddress}}/weatherforecast/
+GET {{WebSettingsManager_HostAddress}}/swagger/v1/swagger.json
 Accept: application/json
 
 ###
