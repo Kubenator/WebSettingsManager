@@ -206,6 +206,7 @@ namespace WebSettingsManager.Models
                 .FirstOrDefaultAsync(c => c.UserId == userId && c.Id == confId).ConfigureAwait(false);
             if (existingConfiguration == null)
                 throw new UserConfigurationNotFoundException(userId, confId);
+            existingConfiguration.ConfigurationName = configurationData.ConfigurationName;
             existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontSize = configurationData.TextConfigurationOptions.FontSize;
             existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontName = configurationData.TextConfigurationOptions.FontName;
             if (dbContext.Instance.ChangeTracker.HasChanges())
