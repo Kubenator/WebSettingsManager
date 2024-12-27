@@ -8,6 +8,12 @@ namespace WebSettingsManager.Models
     public class UserWithVersioningTextConfigurationsRepository : IUserWithVersioningTextConfigurationsRepository
     {
         private IServiceScopeFactory _scopeFactory;
+
+        /// <summary>
+        /// <inheritdoc cref="IUserWithVersioningTextConfigurationsRepository.UserTextConfigurationUpdated"/>
+        /// </summary>
+        public event EventHandler<UserTextConfigurationUpdatedEventArgs>? UserTextConfigurationUpdated;
+
         public UserWithVersioningTextConfigurationsRepository(IServiceScopeFactory scopeFactory)
         {
             _scopeFactory = scopeFactory;
@@ -209,9 +215,22 @@ namespace WebSettingsManager.Models
             existingConfiguration.ConfigurationName = configurationData.ConfigurationName;
             existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontSize = configurationData.TextConfigurationOptions.FontSize;
             existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontName = configurationData.TextConfigurationOptions.FontName;
-            if (dbContext.Instance.ChangeTracker.HasChanges())
+            var isAnyChangesExists = dbContext.Instance.ChangeTracker.HasChanges();
+            if (isAnyChangesExists)
                 existingConfiguration.TextConfigurationActualState.ModificationDateTime = DateTime.Now;
+
             await dbContext.Instance.SaveChangesAsync().ConfigureAwait(false);
+
+            if (isAnyChangesExists)
+                UserTextConfigurationUpdated?.Invoke(this, new UserTextConfigurationUpdatedEventArgs(
+                    userId,
+                    confId,
+                    existingConfiguration.ConfigurationName,
+                    existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontName,
+                    existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontSize
+                    ));
+
+            
 
             return existingConfiguration;
         }
@@ -263,9 +282,20 @@ namespace WebSettingsManager.Models
 
             existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontSize = existingConfiguration.TextConfigurationActualState.TextConfigurationSavedState.TextConfigurationOptions.FontSize;
             existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontName = existingConfiguration.TextConfigurationActualState.TextConfigurationSavedState.TextConfigurationOptions.FontName;
-            if (dbContext.Instance.ChangeTracker.HasChanges())
+            var isAnyChangesExists = dbContext.Instance.ChangeTracker.HasChanges();
+            if (isAnyChangesExists)
                 existingConfiguration.TextConfigurationActualState.ModificationDateTime = DateTime.Now;
+
             await dbContext.Instance.SaveChangesAsync().ConfigureAwait(false);
+
+            if (isAnyChangesExists)
+                UserTextConfigurationUpdated?.Invoke(this, new UserTextConfigurationUpdatedEventArgs(
+                    userId,
+                    confId,
+                    existingConfiguration.ConfigurationName,
+                    existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontName,
+                    existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontSize
+                    ));
 
             return existingConfiguration;
         }
@@ -300,7 +330,16 @@ namespace WebSettingsManager.Models
             existingConfiguration.TextConfigurationActualState.ModificationDateTime = DateTime.Now;
             existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontSize = savedStateToRestore.TextConfigurationOptions.FontSize;
             existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontName = savedStateToRestore.TextConfigurationOptions.FontName;
+
             await dbContext.Instance.SaveChangesAsync().ConfigureAwait(false);
+
+            UserTextConfigurationUpdated?.Invoke(this, new UserTextConfigurationUpdatedEventArgs(
+                    userId,
+                    confId,
+                    existingConfiguration.ConfigurationName,
+                    existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontName,
+                    existingConfiguration.TextConfigurationActualState.TextConfigurationOptions.FontSize
+                    ));
 
             return existingConfiguration;
         }

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using WebSettingsManager.Hubs;
 using WebSettingsManager.Interfaces;
 using WebSettingsManager.Models;
 
@@ -31,9 +32,11 @@ namespace WebSettingsManager
                 var xmlPath = Path.Combine(basePath, "WebSettingsManager.xml");
                 options.IncludeXmlComments(xmlPath);
             });
+            builder.Services.AddSignalR();
             builder.Services.AddDbContext<WebSettingsManagerDbContext>(options => options.UseSqlite("Data Source=WebSettingsManager.db"));
             builder.Services.AddScoped<IWebSettingsManagerDbContext>(serviceProvider => serviceProvider.GetRequiredService<WebSettingsManagerDbContext>());
             builder.Services.AddSingleton<IUserWithVersioningTextConfigurationsRepository, UserWithVersioningTextConfigurationsRepository>();
+            builder.Services.AddSingleton<IUserConfigurationChangingSubscriptionManager, UserConfigurationChangingSubscriptionManager>();
             var app = builder.Build();
 
             if (app.Environment.IsDevelopment())
@@ -46,6 +49,9 @@ namespace WebSettingsManager
                 app.UseSwaggerUI();
             }
             app.MapControllers();
+            app.UseDefaultFiles();
+            app.UseStaticFiles();
+            app.MapHub<UsersHub>("/users-hub");
             app.Run();
         }
     }

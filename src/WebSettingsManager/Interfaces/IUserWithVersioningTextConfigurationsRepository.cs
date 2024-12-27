@@ -140,5 +140,50 @@ namespace WebSettingsManager.Interfaces
         /// <returns></returns>
         public Task<TextConfigurationSavedState_Db> RemoveUserConfigurationSavedState(UInt64 userId, UInt64 confId, UInt64 savedStateId);
         #endregion ManageUserConfigurationSavedStates
+
+        /// <summary>
+        /// Событие обновлления конфигурации текста у пользователя
+        /// </summary>
+        public event EventHandler<UserTextConfigurationUpdatedEventArgs>? UserTextConfigurationUpdated;
     }
+
+    /// <summary>
+    /// Данные события обновления конфигурации текста у пользователя
+    /// </summary>
+    public class UserTextConfigurationUpdatedEventArgs : EventArgs
+    {
+        public UserTextConfigurationUpdatedEventArgs(UInt64 userId, UInt64 configurationId, string configurationName, string fontName, int fontSize)
+        { 
+            this.UserId = userId;
+            this.ConfigurationId = configurationId;
+            this.ConfigurationName = configurationName;
+            this.FontName = fontName;
+            this.FontSize = fontSize;
+        }
+        /// <summary>
+        /// Id пользователя
+        /// </summary>
+        public UInt64 UserId { get; }
+
+        /// <summary>
+        /// Id конфигурации
+        /// </summary>
+        public UInt64 ConfigurationId { get; }
+
+        /// <summary>
+        /// Название конфигурации
+        /// </summary>
+        public string ConfigurationName { get; }
+
+        /// <summary>
+        /// Название шрифта
+        /// </summary>
+        public string FontName { get; }
+
+        /// <summary>
+        /// Размер шрифта
+        /// </summary>
+        public int FontSize { get; }
+    }
+
 }
